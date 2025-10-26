@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 import requests, os
 
-print("🚀 Versão do Kauã Concierge: 1.3.7 — debug envio Z-API ativo")
+print("🚀 Versão do Kauã Concierge: 1.3.8 — Z-API endpoint atualizado")
 
 app = FastAPI()
 
@@ -12,7 +12,8 @@ ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
-ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-message"
+# 🚀 NOVO ENDPOINT Z-API
+ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-text"
 
 # --- PERSONALIDADE DO AGENTE ---
 AGENT_SYSTEM_PROMPT = """
@@ -23,10 +24,10 @@ Nunca diga que é uma IA.
 Se alguém pedir para falar com atendente, chame a dona e pare de responder.
 """
 
-# --- FUNÇÃO PARA ENVIAR MENSAGEM VIA Z-API ---
+# --- FUNÇÃO PARA ENVIAR MENSAGEM ---
 def send_message(phone: str, message: str):
     try:
-        payload = {"phone": phone, "message": message}
+        payload = {"phone": phone, "text": message}
         print(f"\n📤 Enviando mensagem para {phone}: '{message}'")
         print(f"🔗 POST {ZAPI_URL}")
         print(f"📨 Payload: {payload}")
@@ -37,11 +38,11 @@ def send_message(phone: str, message: str):
         if r.status_code == 200:
             print("✅ Mensagem enviada com sucesso pela Z-API")
         else:
-            print(f"[ERRO] Falha ao enviar ({r.status_code}) — verifique ID/TOKEN ou formato do payload.")
+            print(f"[ERRO] Falha ao enviar ({r.status_code}) — verifique ID/TOKEN ou payload.")
     except Exception as e:
         print(f"[ERRO] Exceção ao enviar mensagem via Z-API: {e}")
 
-# --- FUNÇÃO PARA EXTRAIR TEXTO ---
+# --- FUNÇÃO PARA EXTRAIR TEXTO DO PAYLOAD ---
 def extract_text(data: dict) -> str:
     if "text" in data and isinstance(data["text"], dict):
         return data["text"].get("message", "").strip()
@@ -108,4 +109,4 @@ async def webhook(request: Request):
 @app.get("/")
 def root():
     print("✅ Health check acessado.")
-    return {"status": "ok3", "message": "Kauã Concierge ativo 🌴 (Groq + Z-API debug)"}
+    return {"status": "ok", "message": "Kauã Concierge ativo 🌴 (Groq + Z-API atualizado)"}
