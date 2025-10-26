@@ -24,23 +24,40 @@ Se alguém pedir para falar com atendente, chame a dona e pare de responder.
 def send_message(phone: str, message: str):
     try:
         payload = {"phone": phone, "message": message}
-        requests.post(ZAPI_URL, json=payload, timeout=10)
+        r = requests.post(ZAPI_URL, json=payload, timeout=10)
+        if r.status_code != 200:
+            print(f"[ERRO] Falha ao enviar mensagem ({r.status_code}): {r.text}")
     except Exception as e:
-        print(f"Erro ao enviar mensagem: {e}")
+        print(f"[ERRO] Falha ao enviar mensagem: {e}")
 
 # --- WEBHOOK ---
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
     phone = data.get("phone")
-    text = data.get("text", "").strip()
+
+    # Detecta se o texto veio direto ou dentro de "message"
+    message_obj = data.get("message")
+    if isinstance(message_obj, dict):
+        text = message_obj.get("text", "")
+    else:
+        text = data.get("text", "")
+
+    if not isinstance(text, str):
+        text = str(text)
+
+    text = text.strip()
+
+    # Logs de depuração
+    print(f"\n📩 Mensagem recebida de {phone}: '{text}'")
 
     if not phone or not text:
+        print("⚠️ Dados inválidos recebidos no webhook.")
         return {"status": "invalid"}
 
-    # Autoriza apenas o número configurado
+    # Verifica número autorizado
     if AUTHORIZED_NUMBER and phone != AUTHORIZED_NUMBER:
-        print(f"Ignorando número não autorizado: {phone}")
+        print(f"🚫 Ignorando número não autorizado: {phone}")
         return {"status": "ignored"}
 
     # Atendimento humano
@@ -72,8 +89,9 @@ async def webhook(request: Request):
         )
         response.raise_for_status()
         reply = response.json()["choices"][0]["message"]["content"]
+        print(f"💬 Resposta gerada: {reply}")
     except Exception as e:
-        print(f"Erro ao consultar Groq API: {e}")
+        print(f"[ERRO] Falha ao consultar Groq API: {e}")
         reply = "Desculpa 🌊, tive um probleminha técnico. Pode repetir sua mensagem?"
 
     send_message(phone, reply)
@@ -82,4 +100,5 @@ async def webhook(request: Request):
 # --- HEALTH CHECK ---
 @app.get("/")
 def root():
+    print("✅ Health check acessado.")
     return {"status": "ok", "message": "Kauã Concierge ativo 🌴 (Groq API)"}
