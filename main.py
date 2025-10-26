@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 import requests, os
 
-print("🚀 Versão do Kauã Concierge: 1.3.8 — Z-API endpoint atualizado")
+print("🚀 Versão do Kauã Concierge: 1.3.9 — envio Z-API compatível OK")
 
 app = FastAPI()
 
@@ -12,8 +12,8 @@ ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
-# 🚀 NOVO ENDPOINT Z-API
-ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-text"
+# ✅ ENDPOINT CORRETO
+ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-message"
 
 # --- PERSONALIDADE DO AGENTE ---
 AGENT_SYSTEM_PROMPT = """
@@ -24,10 +24,10 @@ Nunca diga que é uma IA.
 Se alguém pedir para falar com atendente, chame a dona e pare de responder.
 """
 
-# --- FUNÇÃO PARA ENVIAR MENSAGEM ---
+# --- FUNÇÃO PARA ENVIAR MENSAGEM VIA Z-API ---
 def send_message(phone: str, message: str):
     try:
-        payload = {"phone": phone, "text": message}
+        payload = {"phone": phone, "message": message}
         print(f"\n📤 Enviando mensagem para {phone}: '{message}'")
         print(f"🔗 POST {ZAPI_URL}")
         print(f"📨 Payload: {payload}")
@@ -35,7 +35,7 @@ def send_message(phone: str, message: str):
         r = requests.post(ZAPI_URL, json=payload, timeout=15)
         print(f"📦 Resposta da Z-API ({r.status_code}): {r.text}")
 
-        if r.status_code == 200:
+        if r.status_code == 200 and "error" not in r.text.lower():
             print("✅ Mensagem enviada com sucesso pela Z-API")
         else:
             print(f"[ERRO] Falha ao enviar ({r.status_code}) — verifique ID/TOKEN ou payload.")
@@ -44,6 +44,7 @@ def send_message(phone: str, message: str):
 
 # --- FUNÇÃO PARA EXTRAIR TEXTO DO PAYLOAD ---
 def extract_text(data: dict) -> str:
+    # Z-API normalmente envia dentro de data["text"]["message"]
     if "text" in data and isinstance(data["text"], dict):
         return data["text"].get("message", "").strip()
     elif "message" in data and isinstance(data["message"], str):
@@ -69,12 +70,13 @@ async def webhook(request: Request):
         print(f"🚫 Ignorando número não autorizado: {phone}")
         return {"status": "ignored"}
 
+    # --- PEDIDO PARA ATENDENTE ---
     if any(word in text.lower() for word in ["atendente", "pessoa", "humano"]):
         send_message(phone, "Tudo bem 🌺! Já chamei nossa atendente pra falar com você!")
         send_message(AUTHORIZED_NUMBER, f"⚠️ Cliente {phone} pediu atendimento humano: '{text}'")
         return {"status": "human_mode_triggered"}
 
-    # --- CHAMADA GROQ API ---
+    # --- PROCESSAMENTO COM GROQ ---
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
@@ -109,4 +111,4 @@ async def webhook(request: Request):
 @app.get("/")
 def root():
     print("✅ Health check acessado.")
-    return {"status": "ok", "message": "Kauã Concierge ativo 🌴 (Groq + Z-API atualizado)"}
+    return {"status": "ok3", "message": "Kauã Concierge ativo 🌴 (Groq + Z-API compatível)"}
