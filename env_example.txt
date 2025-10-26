@@ -1,0 +1,3 @@
+OPENAI_API_KEY=sk-xxxx
+ZAPI_ID=seu_id_da_zapi
+ZAPI_TOKEN=seu_token_da_zapi
