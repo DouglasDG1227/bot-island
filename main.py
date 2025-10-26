@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 import requests, os
 
-print("🚀 Versão do Kauã Concierge: 1.3.5 — Z-API formato real suportado")
+print("🚀 Versão do Kauã Concierge: 1.3.6 — Groq API atualizada")
 
 app = FastAPI()
 
@@ -10,7 +10,9 @@ AUTHORIZED_NUMBER = os.getenv("AUTHORIZED_NUMBER", "")
 ZAPI_ID = os.getenv("ZAPI_ID")
 ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME", "llama3-8b-8192")
+
+# Use um modelo atual da Groq
+MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
 ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-message"
 
@@ -23,7 +25,7 @@ Nunca diga que é uma IA.
 Se alguém pedir para falar com atendente, chame a dona e pare de responder.
 """
 
-# --- FUNÇÃO PARA ENVIAR MENSAGEM VIA Z-API ---
+# --- ENVIO DE MENSAGEM VIA Z-API ---
 def send_message(phone: str, message: str):
     try:
         payload = {"phone": phone, "message": message}
@@ -33,15 +35,8 @@ def send_message(phone: str, message: str):
     except Exception as e:
         print(f"[ERRO] Falha ao enviar mensagem: {e}")
 
-# --- FUNÇÃO PARA EXTRAIR TEXTO DE FORMA INTELIGENTE ---
+# --- EXTRAÇÃO DE TEXTO DO PAYLOAD ---
 def extract_text(data: dict) -> str:
-    """
-    Extrai corretamente o texto do payload da Z-API.
-    Exemplo real:
-    {
-      "text": {"message": "teste"}
-    }
-    """
     if "text" in data and isinstance(data["text"], dict):
         return data["text"].get("message", "").strip()
     elif "message" in data and isinstance(data["message"], str):
@@ -63,12 +58,10 @@ async def webhook(request: Request):
         print("⚠️ Dados inválidos recebidos no webhook.")
         return {"status": "invalid"}
 
-    # --- Verifica número autorizado ---
     if AUTHORIZED_NUMBER and phone != AUTHORIZED_NUMBER:
         print(f"🚫 Ignorando número não autorizado: {phone}")
         return {"status": "ignored"}
 
-    # --- Atendimento humano ---
     if any(word in text.lower() for word in ["atendente", "pessoa", "humano"]):
         send_message(phone, "Tudo bem 🌺! Já chamei nossa atendente pra falar com você!")
         send_message(AUTHORIZED_NUMBER, f"⚠️ Cliente {phone} pediu atendimento humano: '{text}'")
@@ -95,10 +88,7 @@ async def webhook(request: Request):
             json=payload,
             timeout=30,
         )
-        if response.status_code != 200:
-            print(f"[ERRO] Groq retornou {response.status_code}: {response.text}")
-            raise Exception("Resposta inválida da Groq API")
-
+        response.raise_for_status()
         reply = response.json()["choices"][0]["message"]["content"]
         print(f"💬 Resposta gerada: {reply}")
     except Exception as e:
@@ -112,4 +102,4 @@ async def webhook(request: Request):
 @app.get("/")
 def root():
     print("✅ Health check acessado.")
-    return {"status": "ok3", "message": "Kauã Concierge ativo 🌴 (Groq API)"}
+    return {"status": "ok", "message": "Kauã Concierge ativo 🌴 (Groq API atualizada)"}
