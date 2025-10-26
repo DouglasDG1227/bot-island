@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 import requests, os
 
-print("🚀 Versão do Kauã Concierge: 1.3.6 — Groq API atualizada")
+print("🚀 Versão do Kauã Concierge: 1.3.7 — debug envio Z-API ativo")
 
 app = FastAPI()
 
@@ -10,8 +10,6 @@ AUTHORIZED_NUMBER = os.getenv("AUTHORIZED_NUMBER", "")
 ZAPI_ID = os.getenv("ZAPI_ID")
 ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-
-# Use um modelo atual da Groq
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
 ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-message"
@@ -25,17 +23,25 @@ Nunca diga que é uma IA.
 Se alguém pedir para falar com atendente, chame a dona e pare de responder.
 """
 
-# --- ENVIO DE MENSAGEM VIA Z-API ---
+# --- FUNÇÃO PARA ENVIAR MENSAGEM VIA Z-API ---
 def send_message(phone: str, message: str):
     try:
         payload = {"phone": phone, "message": message}
-        r = requests.post(ZAPI_URL, json=payload, timeout=10)
-        if r.status_code != 200:
-            print(f"[ERRO] Falha ao enviar mensagem ({r.status_code}): {r.text}")
-    except Exception as e:
-        print(f"[ERRO] Falha ao enviar mensagem: {e}")
+        print(f"\n📤 Enviando mensagem para {phone}: '{message}'")
+        print(f"🔗 POST {ZAPI_URL}")
+        print(f"📨 Payload: {payload}")
 
-# --- EXTRAÇÃO DE TEXTO DO PAYLOAD ---
+        r = requests.post(ZAPI_URL, json=payload, timeout=15)
+        print(f"📦 Resposta da Z-API ({r.status_code}): {r.text}")
+
+        if r.status_code == 200:
+            print("✅ Mensagem enviada com sucesso pela Z-API")
+        else:
+            print(f"[ERRO] Falha ao enviar ({r.status_code}) — verifique ID/TOKEN ou formato do payload.")
+    except Exception as e:
+        print(f"[ERRO] Exceção ao enviar mensagem via Z-API: {e}")
+
+# --- FUNÇÃO PARA EXTRAIR TEXTO ---
 def extract_text(data: dict) -> str:
     if "text" in data and isinstance(data["text"], dict):
         return data["text"].get("message", "").strip()
@@ -102,4 +108,4 @@ async def webhook(request: Request):
 @app.get("/")
 def root():
     print("✅ Health check acessado.")
-    return {"status": "ok", "message": "Kauã Concierge ativo 🌴 (Groq API atualizada)"}
+    return {"status": "ok3", "message": "Kauã Concierge ativo 🌴 (Groq + Z-API debug)"}
