@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Request
 import requests, os
 
-print("🚀 Versão do Kauã Concierge: 1.3.9 — envio Z-API compatível OK")
+# --- INFORMAÇÕES DE INICIALIZAÇÃO ---
+print("🚀 Versão do Kauã Concierge: 1.4.0 — integração Groq + Z-API Cloud v2 (/send-text)")
 
 app = FastAPI()
 
@@ -12,8 +13,8 @@ ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
-# ✅ ENDPOINT CORRETO
-ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-message"
+# ✅ ENDPOINT CORRETO PARA SUA INSTÂNCIA
+ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-text"
 
 # --- PERSONALIDADE DO AGENTE ---
 AGENT_SYSTEM_PROMPT = """
@@ -27,7 +28,7 @@ Se alguém pedir para falar com atendente, chame a dona e pare de responder.
 # --- FUNÇÃO PARA ENVIAR MENSAGEM VIA Z-API ---
 def send_message(phone: str, message: str):
     try:
-        payload = {"phone": phone, "message": message}
+        payload = {"phone": phone, "text": message}
         print(f"\n📤 Enviando mensagem para {phone}: '{message}'")
         print(f"🔗 POST {ZAPI_URL}")
         print(f"📨 Payload: {payload}")
@@ -44,7 +45,10 @@ def send_message(phone: str, message: str):
 
 # --- FUNÇÃO PARA EXTRAIR TEXTO DO PAYLOAD ---
 def extract_text(data: dict) -> str:
-    # Z-API normalmente envia dentro de data["text"]["message"]
+    """
+    A Z-API envia diferentes formatos de JSON dependendo da configuração.
+    Essa função cobre todos os padrões comuns.
+    """
     if "text" in data and isinstance(data["text"], dict):
         return data["text"].get("message", "").strip()
     elif "message" in data and isinstance(data["message"], str):
@@ -111,4 +115,4 @@ async def webhook(request: Request):
 @app.get("/")
 def root():
     print("✅ Health check acessado.")
-    return {"status": "ok3", "message": "Kauã Concierge ativo 🌴 (Groq + Z-API compatível)"}
+    return {"status": "ok", "message": "Kauã Concierge ativo 🌴 (Groq + Z-API Cloud v2)"}
