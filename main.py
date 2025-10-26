@@ -1,22 +1,22 @@
 from fastapi import FastAPI, Request
 import requests, os
 
-# --- INFORMAÇÕES DE INICIALIZAÇÃO ---
-print("🚀 Versão do Kauã Concierge: 1.4.0 — integração Groq + Z-API Cloud v2 (/send-text)")
+# --- INICIALIZAÇÃO ---
+print("🚀 Versão do Kauã Concierge: 1.4.1 — integração Groq + Z-API Cloud v2 (corrigido campo 'message')")
 
 app = FastAPI()
 
-# --- VARIÁVEIS DE AMBIENTE ---
+# --- VARIÁVEIS ---
 AUTHORIZED_NUMBER = os.getenv("AUTHORIZED_NUMBER", "")
 ZAPI_ID = os.getenv("ZAPI_ID")
 ZAPI_TOKEN = os.getenv("ZAPI_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
 
-# ✅ ENDPOINT CORRETO PARA SUA INSTÂNCIA
+# Endpoint compatível
 ZAPI_URL = f"https://api.z-api.io/instances/{ZAPI_ID}/token/{ZAPI_TOKEN}/send-text"
 
-# --- PERSONALIDADE DO AGENTE ---
+# --- PERSONALIDADE ---
 AGENT_SYSTEM_PROMPT = """
 Você é Kauã, o concierge digital da Ilha Azul 🌴.
 Fale com simpatia, gírias leves e tom humano.
@@ -25,10 +25,10 @@ Nunca diga que é uma IA.
 Se alguém pedir para falar com atendente, chame a dona e pare de responder.
 """
 
-# --- FUNÇÃO PARA ENVIAR MENSAGEM VIA Z-API ---
+# --- ENVIO DE MENSAGEM ---
 def send_message(phone: str, message: str):
     try:
-        payload = {"phone": phone, "text": message}
+        payload = {"phone": phone, "message": message}  # ← campo corrigido!
         print(f"\n📤 Enviando mensagem para {phone}: '{message}'")
         print(f"🔗 POST {ZAPI_URL}")
         print(f"📨 Payload: {payload}")
@@ -43,12 +43,8 @@ def send_message(phone: str, message: str):
     except Exception as e:
         print(f"[ERRO] Exceção ao enviar mensagem via Z-API: {e}")
 
-# --- FUNÇÃO PARA EXTRAIR TEXTO DO PAYLOAD ---
+# --- EXTRAÇÃO DE TEXTO ---
 def extract_text(data: dict) -> str:
-    """
-    A Z-API envia diferentes formatos de JSON dependendo da configuração.
-    Essa função cobre todos os padrões comuns.
-    """
     if "text" in data and isinstance(data["text"], dict):
         return data["text"].get("message", "").strip()
     elif "message" in data and isinstance(data["message"], str):
@@ -57,7 +53,7 @@ def extract_text(data: dict) -> str:
         return data["body"].strip()
     return ""
 
-# --- WEBHOOK PRINCIPAL ---
+# --- WEBHOOK ---
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
@@ -74,18 +70,12 @@ async def webhook(request: Request):
         print(f"🚫 Ignorando número não autorizado: {phone}")
         return {"status": "ignored"}
 
-    # --- PEDIDO PARA ATENDENTE ---
     if any(word in text.lower() for word in ["atendente", "pessoa", "humano"]):
         send_message(phone, "Tudo bem 🌺! Já chamei nossa atendente pra falar com você!")
         send_message(AUTHORIZED_NUMBER, f"⚠️ Cliente {phone} pediu atendimento humano: '{text}'")
         return {"status": "human_mode_triggered"}
 
-    # --- PROCESSAMENTO COM GROQ ---
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json",
-    }
-
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     payload = {
         "model": MODEL_NAME,
         "messages": [
