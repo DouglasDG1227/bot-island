@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Request
 import requests, os
 
-print("🚀 Versão do Kauã Concierge: 1.3.2 — integração Groq e Z-API OK")
+print("🚀 Versão do Kauã Concierge: 1.3.3 — suporte total a formatos Z-API")
 
-# 🔹 Criação do app ANTES das rotas
 app = FastAPI()
 
 # --- VARIÁVEIS DE AMBIENTE ---
@@ -34,38 +33,45 @@ def send_message(phone: str, message: str):
     except Exception as e:
         print(f"[ERRO] Falha ao enviar mensagem: {e}")
 
+# --- FUNÇÃO AUXILIAR PARA CAPTURAR TEXTO ---
+def extract_text(data: dict) -> str:
+    """
+    Detecta o campo correto onde o texto está vindo.
+    Compatível com múltiplas estruturas da Z-API.
+    """
+    possible_paths = [
+        ["message", "text"],
+        ["message", "content", "body"],
+        ["message", "message"],
+        ["message", "body"],
+        ["body"],
+        ["text"],
+        ["content"],
+        ["caption"]
+    ]
+
+    for path in possible_paths:
+        current = data
+        for key in path:
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                current = None
+                break
+        if isinstance(current, str) and current.strip():
+            return current.strip()
+
+    return ""
+
+
 # --- WEBHOOK PRINCIPAL ---
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
     phone = data.get("phone")
 
-    # --- Captura o texto da mensagem, independente do formato ---
-    text = ""
-    message = data.get("message", {})
+    text = extract_text(data)
 
-    if isinstance(message, dict):
-        # Formato 1: {"message": {"text": "oi"}}
-        if "text" in message:
-            text = message["text"]
-
-        # Formato 2: {"message": {"content": {"body": "oi"}}}
-        elif "content" in message and isinstance(message["content"], dict):
-            text = message["content"].get("body", "")
-
-        # Formato 3: {"message": {"message": "oi"}}
-        elif "message" in message and isinstance(message["message"], str):
-            text = message["message"]
-
-    # Fallback (mensagem direta)
-    elif "text" in data:
-        text = data.get("text", "")
-
-    if not isinstance(text, str):
-        text = str(text)
-    text = text.strip()
-
-    # --- Logs ---
     print(f"\n📩 Mensagem recebida de {phone}: '{text}'")
 
     if not phone or not text:
@@ -121,4 +127,4 @@ async def webhook(request: Request):
 @app.get("/")
 def root():
     print("✅ Health check acessado.")
-    return {"status": "ok", "message": "Kauã Concierge ativo 🌴 (Groq API)"}
+    return {"status": "ok2", "message": "Kauã Concierge ativo 🌴 (Groq API)"}
