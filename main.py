@@ -36,8 +36,8 @@ async def webhook(request: Request):
     data = await request.json()
     phone = data.get("phone")
 
-    # Detecta se o texto veio direto ou dentro de "message"
-    message_obj = data.get("message")
+    # --- 🔧 CORREÇÃO: tratamento do campo message/text ---
+    message_obj = data.get("message", {})
     if isinstance(message_obj, dict):
         text = message_obj.get("text", "")
     else:
@@ -48,7 +48,7 @@ async def webhook(request: Request):
 
     text = text.strip()
 
-    # Logs de depuração
+    # Log de entrada
     print(f"\n📩 Mensagem recebida de {phone}: '{text}'")
 
     if not phone or not text:
@@ -66,7 +66,7 @@ async def webhook(request: Request):
         send_message(AUTHORIZED_NUMBER, f"⚠️ Cliente {phone} pediu atendimento humano: '{text}'")
         return {"status": "human_mode_triggered"}
 
-    # --- PROCESSA VIA GROQ API ---
+    # --- CHAMADA GROQ API ---
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
         "Content-Type": "application/json",
